@@ -1,14 +1,16 @@
-# iTunes Search & Favourites App
+# iMedia Finder – Full Stack Application
 
 ## Overview
-A full-stack web application built with React, Express, MongoDB, and JWT authentication.
+A full-stack web application that allows users to search iTunes media content and manage personalised favourites.
+
+Built using React, Express, MongoDB, and JWT authentication.
 
 Users can:
 - Register and log in
 - Search the iTunes API for media content
 - Save and manage favourites linked to their account
 
-This project demonstrates full-stack integration, API consumption, authentication, and state management.
+This project demonstrates full-stack integration, external API consumption, secure authentication, and client-side state management.
 
 ---
 
@@ -67,14 +69,14 @@ Create an account with real-time password strength feedback.
 - React Router
 - Axios
 - Bootstrap
-- Formik + Yup
+- Formik and Yup
 
 ### Backend
-- Express.js
-- MongoDB Atlas + Mongoose
-- JWT (jsonwebtoken)
+- Node.js with Express
+- MongoDB Atlas with Mongoose
+- JSON Web Tokens (JWT)
 - bcryptjs
-- Axios (for external API calls)
+- Axios (for external API requests)
 
 ---
 
@@ -82,8 +84,8 @@ Create an account with real-time password strength feedback.
 
 ```
 itunes-fullstack-app/
-├── frontend/   # React client (UI + API calls)
-└── backend/    # Express API (auth, search, favourites)
+├── frontend/   # React client (UI + API integration)
+└── backend/    # Express API (authentication, search, favourites)
 ```
 
 ## Environment Variables
