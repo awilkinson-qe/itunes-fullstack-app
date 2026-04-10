@@ -1,13 +1,16 @@
 // ProtectedRoute.jsx - Component for protecting routes based on authentication
-// This component checks if the user is authenticated before rendering the protected content. If not authenticated, it redirects to the login page.
+// This component ensures that only authenticated users can access certain routes.
+// If the user is not authenticated, they are redirected to the login page.
+// While authentication state is being checked, a loading spinner is displayed.
+
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
-  // Read auth state from context.
+  // Get authentication state from context
   const { isAuthenticated, loading } = useAuth();
 
-  // Wait until auth state has been checked before redirecting.
+  // Show a loading state while checking token validity (/auth/me)
   if (loading) {
     return (
       <div className="container py-5 text-center text-white-50">
@@ -17,7 +20,7 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  // Only render protected content when authenticated.
+  // Render protected content if authenticated, otherwise redirect to login
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

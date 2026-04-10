@@ -1,12 +1,14 @@
-// authMiddleware.js - Middleware to protect routes by verifying JWT tokens
-// This module exports a middleware function that checks for a valid Bearer token in the Authorization header and verifies it using the JWT secret.
+// authMiddleware.js - Protects routes by verifying JWT tokens
+// Checks for a Bearer token in the Authorization header and,
+// if valid, attaches the decoded user payload to req.user.
+
 const jwt = require("jsonwebtoken");
 
-// Protect routes by requiring a valid Bearer token.
+// Middleware to protect private routes
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // Check that the header exists and uses the Bearer format.
+  // Ensure an Authorization header exists and follows Bearer format
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       success: false,
@@ -14,12 +16,14 @@ const authMiddleware = (req, res, next) => {
     });
   }
 
+  // Extract token after "Bearer "
   const token = authHeader.split(" ")[1];
 
   try {
-    // Verify and attach the decoded token payload to the request.
+    // Verify token and attach decoded payload to request object
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+
     next();
   } catch (error) {
     return res.status(401).json({

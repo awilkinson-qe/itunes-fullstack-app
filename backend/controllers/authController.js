@@ -1,11 +1,14 @@
 // authController.js - Handles user authentication and authorization
-// This module provides functions for registering, logging in, and retrieving the current user.
+// Provides registration, login, and current user retrieval using JWT.
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Create a signed JWT for the authenticated user.
+// ===== HELPER =====
+
+// Create a signed JWT for an authenticated user
+// Token includes minimal identifying info (no sensitive data)
 const createToken = (user) => {
   return jwt.sign(
     {
@@ -18,12 +21,14 @@ const createToken = (user) => {
   );
 };
 
-// Register a new user, then return a token and safe user details.
+// ===== REGISTER =====
+
+// Register a new user, hash password, and return token
 const registerUser = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // Basic required field validation.
+    // Validate required fields
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -31,10 +36,11 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // Normalise input (basic data hygiene)
     const normalizedUsername = username.trim();
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check whether the username or email is already in use.
+    // Check for existing user (username OR email)
     const existingUser = await User.findOne({
       $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
     });
@@ -46,15 +52,17 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Hash the password before storing it.
+    // Hash password before storing (security best practice)
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create new user record
     const user = await User.create({
       username: normalizedUsername,
       email: normalizedEmail,
       password: hashedPassword,
     });
 
+    // Generate token for immediate login experience
     const token = createToken(user);
 
     res.status(201).json({
@@ -69,6 +77,7 @@ const registerUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Register error:", error.message);
+
     res.status(500).json({
       success: false,
       message: "Server error during registration.",
@@ -76,12 +85,14 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Authenticate an existing user and return a token.
+// ===== LOGIN =====
+
+// Authenticate existing user and return token
 const loginUser = async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
 
-    // Basic required field validation.
+    // Validate required fields
     if (!emailOrUsername || !password) {
       return res.status(400).json({
         success: false,
@@ -91,6 +102,7 @@ const loginUser = async (req, res) => {
 
     const normalizedLogin = emailOrUsername.trim();
 
+    // Find user by email OR username
     const user = await User.findOne({
       $or: [
         { email: normalizedLogin.toLowerCase() },
@@ -105,6 +117,7 @@ const loginUser = async (req, res) => {
       });
     }
 
+    // Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -114,6 +127,7 @@ const loginUser = async (req, res) => {
       });
     }
 
+    // Generate JWT
     const token = createToken(user);
 
     res.json({
@@ -128,6 +142,7 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error.message);
+
     res.status(500).json({
       success: false,
       message: "Server error during login.",
@@ -135,9 +150,12 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Return the currently authenticated user's safe profile data.
+// ===== CURRENT USER =====
+
+// Return the authenticated user's profile (excluding password)
 const getCurrentUser = async (req, res) => {
   try {
+    // req.user comes from authMiddleware (decoded JWT)
     const user = await User.findById(req.user.userId).select("-password");
 
     if (!user) {
@@ -153,6 +171,7 @@ const getCurrentUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Get current user error:", error.message);
+
     res.status(500).json({
       success: false,
       message: "Server error.",

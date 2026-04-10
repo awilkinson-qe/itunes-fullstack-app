@@ -1,19 +1,16 @@
 // RegisterPage.jsx - Page for user registration
-// This page provides a form for users to create a new account with a username, email, and password. It uses Formik for form state management and Yup for validation. On successful registration, it automatically logs in the user, updates the auth context, and redirects to the home page. It also handles and displays server-side error messages, such as duplicate email or username.
-import { useMemo, useState } from "react";
+// This page allows users to create an account with username, email, and password.
+// It uses Formik for form handling and Yup for validation.
+// On successful registration, the user is logged in and redirected to the home page.
+
+import { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-// Password validation:
-// - minimum 8 characters
-// - at least one lowercase letter
-// - at least one uppercase letter
-// - at least one number
-// - at least one special character
-// - blocks a few very common weak passwords
+// Validation schema for registration form
 const registerSchema = Yup.object({
   username: Yup.string()
     .min(3, "Username must be at least 3 characters.")
@@ -26,10 +23,7 @@ const registerSchema = Yup.object({
     .matches(/[a-z]/, "Must include at least one lowercase letter.")
     .matches(/[A-Z]/, "Must include at least one uppercase letter.")
     .matches(/[0-9]/, "Must include at least one number.")
-    .matches(
-      /[^A-Za-z0-9]/,
-      "Must include at least one special character."
-    )
+    .matches(/[^A-Za-z0-9]/, "Must include at least one special character.")
     .test(
       "not-common",
       "Password is too common. Please choose a stronger password.",
@@ -51,8 +45,7 @@ const registerSchema = Yup.object({
     .required("Please enter a password."),
 });
 
-// Clear any previous user's search state so a newly registered user
-// does not inherit the last session's Home page results.
+// Clear previous session state
 const clearSearchSessionState = () => {
   sessionStorage.removeItem("searchTerm");
   sessionStorage.removeItem("searchMedia");
@@ -62,7 +55,7 @@ const clearSearchSessionState = () => {
   sessionStorage.removeItem("hasMore");
 };
 
-// Simple password strength helper for live feedback.
+// Password strength helper
 const getPasswordStrength = (password) => {
   if (!password) {
     return { label: "Enter a password", className: "strength-empty" };
@@ -76,54 +69,88 @@ const getPasswordStrength = (password) => {
   if (/[0-9]/.test(password)) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
 
-  const common = ["password", "password123", "123456", "12345678", "qwerty", "abc123"];
+  const common = [
+    "password",
+    "password123",
+    "123456",
+    "12345678",
+    "qwerty",
+    "abc123",
+  ];
+
   if (common.includes(password.toLowerCase())) {
     return { label: "Too weak", className: "strength-weak" };
   }
 
   if (score <= 2) return { label: "Weak", className: "strength-weak" };
-  if (score === 3 || score === 4) {
-    return { label: "Medium", className: "strength-medium" };
-  }
+  if (score <= 4) return { label: "Medium", className: "strength-medium" };
 
   return { label: "Strong", className: "strength-strong" };
 };
 
-function RegisterPage() {
-  // Used to redirect after successful registration.
-  const navigate = useNavigate();
+// Generate strong password
+const generateStrongPassword = (length = 14) => {
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+  const special = "!@#$%^&*()-_=+[]{};:,.?/";
 
-  // Auth context stores the token and logged-in user.
+  const allChars = lowercase + uppercase + numbers + special;
+
+  const getRandomChar = (chars) =>
+    chars[Math.floor(Math.random() * chars.length)];
+
+  const passwordChars = [
+    getRandomChar(lowercase),
+    getRandomChar(uppercase),
+    getRandomChar(numbers),
+    getRandomChar(special),
+  ];
+
+  while (passwordChars.length < length) {
+    passwordChars.push(getRandomChar(allChars));
+  }
+
+  // Shuffle
+  for (let i = passwordChars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [passwordChars[i], passwordChars[j]] = [
+      passwordChars[j],
+      passwordChars[i],
+    ];
+  }
+
+  return passwordChars.join("");
+};
+
+function RegisterPage() {
+  const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Store server-side feedback such as duplicate email/username.
   const [serverMessage, setServerMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="container py-4 py-md-5">
       <div className="row justify-content-center">
         <div className="col-md-7 col-lg-5">
           <div className="card p-4 p-md-5 auth-card">
-            {/* Page header */}
+            {/* Header */}
             <div className="text-center mb-4">
               <h1 className="h3 fw-bold mb-2">Create your account</h1>
               <p className="text-white-50 mb-0">
-                Register to search iTunes content and save favourites.
+                Register to search media and save favourites.
               </p>
             </div>
 
-            {/* Server-side error message */}
+            {/* Server error */}
             {serverMessage && (
-              <div
-                className="alert alert-danger alert-dismissible fade show"
-                role="alert"
-              >
+              <div className="alert alert-danger alert-dismissible fade show">
                 {serverMessage}
                 <button
                   type="button"
                   className="btn-close"
                   onClick={() => setServerMessage("")}
-                  aria-label="Close"
                 />
               </div>
             )}
@@ -137,10 +164,7 @@ function RegisterPage() {
                 try {
                   const response = await api.post("/auth/register", values);
 
-                  // Clear any previous search state before logging in the new user.
                   clearSearchSessionState();
-
-                  // Auto-login after successful registration.
                   login(response.data.token, response.data.user);
                   navigate("/");
                 } catch (error) {
@@ -152,32 +176,43 @@ function RegisterPage() {
                 }
               }}
             >
-              {({ isSubmitting, errors, touched, values }) => {
-                const passwordStrength = useMemo(
-                  () => getPasswordStrength(values.password),
-                  [values.password]
-                );
+              {({
+                isSubmitting,
+                errors,
+                touched,
+                values,
+                setFieldValue,
+                setFieldTouched,
+              }) => {
+                const passwordStrength = getPasswordStrength(values.password);
+
+                const handleSuggestPassword = async () => {
+                  const suggested = generateStrongPassword();
+                  setFieldValue("password", suggested);
+                  setFieldTouched("password", true, false);
+
+                  try {
+                    await navigator.clipboard.writeText(suggested);
+                  } catch {
+                    // Ignore clipboard errors
+                  }
+                };
 
                 return (
                   <Form noValidate>
                     {/* Username */}
                     <div className="mb-3">
-                      <label htmlFor="username" className="form-label">
-                        Username
-                      </label>
+                      <label className="form-label">Username</label>
 
                       <Field
-                        id="username"
                         name="username"
                         className={`form-control auth-input ${
-                          touched.username && errors.username ? "is-invalid" : ""
+                          touched.username && errors.username
+                            ? "is-invalid"
+                            : ""
                         }`}
                         placeholder="Choose a username"
                       />
-
-                      <div className="form-text text-white-50">
-                        This can be different from your email.
-                      </div>
 
                       <div className="invalid-feedback d-block">
                         <ErrorMessage name="username" />
@@ -186,23 +221,16 @@ function RegisterPage() {
 
                     {/* Email */}
                     <div className="mb-3">
-                      <label htmlFor="email" className="form-label">
-                        Email address
-                      </label>
+                      <label className="form-label">Email</label>
 
                       <Field
-                        id="email"
                         name="email"
                         type="email"
                         className={`form-control auth-input ${
                           touched.email && errors.email ? "is-invalid" : ""
                         }`}
-                        placeholder="Enter your email address"
+                        placeholder="Enter your email"
                       />
-
-                      <div className="form-text text-white-50">
-                        Used for login and account identification.
-                      </div>
 
                       <div className="invalid-feedback d-block">
                         <ErrorMessage name="email" />
@@ -211,26 +239,41 @@ function RegisterPage() {
 
                     {/* Password */}
                     <div className="mb-4">
-                      <label htmlFor="password" className="form-label">
-                        Password
-                      </label>
+                      <label className="form-label">Password</label>
 
-                      <Field
-                        id="password"
-                        name="password"
-                        type="password"
-                        className={`form-control auth-input ${
-                          touched.password && errors.password ? "is-invalid" : ""
-                        }`}
-                        placeholder="Create a password"
-                      />
+                      <div className="input-group">
+                        <Field
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          className={`form-control auth-input ${
+                            touched.password && errors.password
+                              ? "is-invalid"
+                              : ""
+                          }`}
+                          placeholder="Create a password"
+                        />
 
-                      <div className="form-text text-white-50">
-                        At least 8 characters, including uppercase, lowercase,
-                        a number and a special character.
+                        <button
+                          type="button"
+                          className="btn btn-outline-light"
+                          onClick={() =>
+                            setShowPassword((prev) => !prev)
+                          }
+                        >
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
                       </div>
 
-                      {/* Live password strength feedback */}
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-info rounded-pill"
+                          onClick={handleSuggestPassword}
+                        >
+                          Suggest strong password
+                        </button>
+                      </div>
+
                       <div className={`small mt-2 ${passwordStrength.className}`}>
                         Password strength: {passwordStrength.label}
                       </div>
@@ -246,14 +289,16 @@ function RegisterPage() {
                       className="btn btn-success w-100 rounded-pill py-2"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Creating account..." : "Create account"}
+                      {isSubmitting
+                        ? "Creating account..."
+                        : "Create account"}
                     </button>
                   </Form>
                 );
               }}
             </Formik>
 
-            {/* Footer link */}
+            {/* Footer */}
             <p className="mt-4 mb-0 text-center text-white-50">
               Already have an account?{" "}
               <Link to="/login" className="auth-link">
